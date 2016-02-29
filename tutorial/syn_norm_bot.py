@@ -14,6 +14,11 @@ with open(config.syndict) as f:
             syn_map[data] = ""
         for word in line.split("|")[1:]:
             syn_map[data] += (", " + word) if syn_map[data] != "" else word
+            if word not in syn_map:
+                syn_map[word] = data
+            else:
+                syn_map[word] += (", " + word)
+
 
 print("Dictionary loaded")
 
@@ -34,6 +39,7 @@ def welcomer(m):
 def listener(m):
     if m.content_type == "text":
             splitted_text = telebot.util.split_string(synnorm(m.text), 3000)
+            print(splitted_text)
             for text in splitted_text:
                 bot.send_message(m.chat.id, text)
 

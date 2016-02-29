@@ -9,7 +9,6 @@ def add_answer(num):
     global account
     account += num
 
-
 @bot.message_handler(commands = ['add'])
 def answerer(m):
     num = int(m.text.split()[1]) if len(m.text.split()) > 1 else 0
