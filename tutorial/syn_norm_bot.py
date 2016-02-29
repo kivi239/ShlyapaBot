@@ -1,30 +1,37 @@
 import config
 import telebot
 import pymorphy2
+from string import whitespace
 
 bot = telebot.TeleBot(config.token)
 morph = pymorphy2.MorphAnalyzer()
 
 syn_map = {}
 
-with open(config.syndict) as f:
-    for line in f.readlines():
-        data = line.split("|")[0]
-        if data not in syn_map:
-            syn_map[data] = ""
-        for word in line.split("|")[1:]:
-            syn_map[data] += (", " + word) if syn_map[data] != "" else word
-            if word not in syn_map:
-                syn_map[word] = data
-            else:
-                syn_map[word] += (", " + word)
+def read_syn_dict(dictionary, divider = None):
+    with open(dictionary) as f:
+        for line in f.readlines():
+            data = line.split(divider)[0]
+            print(data)
+            if data not in syn_map:
+                syn_map[data] = set()
+            for word in line.split(divider)[1:]:
+                syn_map[data].add(word)
 
 
-print("Dictionary loaded")
+#read_syn_dict(config.syndict[0], "|")
+read_syn_dict(config.syndict[1])
+
+print("Dictionaries loaded")
 
 def synnorm(word):
     norm = morph.parse(word)[0].normal_form
-    return syn_map[norm] if norm in syn_map else norm
+    if not norm in syn_map:
+        return norm
+    result = ""
+    for word in syn_map[norm]:
+        result += word + ", "
+    return result[:-2]
     
 
 @bot.message_handler(commands = ['start'])
