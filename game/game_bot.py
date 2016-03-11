@@ -1,7 +1,11 @@
-import config
-import telebot
 import random
+import telebot
 import pymorphy2
+from gensim.models import word2vec
+import logging
+import config
+
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 class GameBot:
     """Shlyapa game bot"""
@@ -35,7 +39,8 @@ class GameBot:
 #        read_syn_dict(config.syndict[0], "|")
         read_syn_dict(config.syndict[1])
 
-        print("Dictionaries loaded")
+        logging.info("Dictionaries loaded")
+        self.model = word2vec.Word2Vec.load_word2vec_format('/Volumes/TRANSCEND/models/ruscorpora.model.bin', binary=True)
 
     def synnorm(self, word):
         norm = self.morph.parse(word)[0].normal_form
@@ -49,7 +54,7 @@ class GameBot:
         
     def new_word(self, player_id):
         word = random.choice(tuple(self.word_base ^ self.word_base_out[player_id]))
-        print(word)
+        logging.info("Загадано слово %s" % word)
         return word
 
     def explain_synonyms(self, word):
@@ -57,10 +62,25 @@ class GameBot:
             return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
         result = ""
         for wrd in self.syn_map[word]:
-            result += wrd + ", "
-        return result[:-2]
+            if self.check_roots(wrd, word) != "NOTAWORD":
+                result += wrd + ", "
+        return "Синонимы к загаданному слову:\n" + result[:-2]
 
-    def check_roots(self, word):
+    def explain_closest_words(self, word):
+        word_mod = word + '_S'
+        if not word_mod in self.model.vocab:
+            return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
+        result = ""
+        for elem in self.model.most_similar(word_mod):
+            wrd = elem[0][:-2]
+            if self.check_roots(wrd, word) != "NOTAWORD":
+                result += wrd + ", "
+        return "Слова, употребляемые в сходном контексте с загаданным:\n" + result[:-2]
+
+    def explain_main(self,word):
+        return random.choice([self.explain_synonyms, self.explain_closest_words])(word)
+
+    def check_roots(self, word, word2):
         return word
 
     def normal_form(self, word):
@@ -72,14 +92,14 @@ class GameBot:
         def greeter(m):
             player_id = m.chat.id
             print(player_id)
-            self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!")
+            self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!\n Если застряли - жмите /help!")
             self.players.add(player_id)
             self.current_word[player_id] = "NOTAWORD"
             self.word_base_out[player_id] = set()
 
         @self.bot.message_handler(commands = ['help'])
         def helper(m):
-            self.bot.send_message(m.chat.id, "Help:\n /next чтобы начать играть / пропустить слово.")
+            self.bot.send_message(m.chat.id, "Help:\n /next чтобы начать играть / пропустить слово. \n /repeat Чтобы впомнить объяснение/получить новое")
 
         @self.bot.message_handler(commands = ['next'])
         def starter(m):
@@ -92,11 +112,23 @@ class GameBot:
                 self.word_base_out[player_id].add(self.current_word[player_id])
             self.current_word[player_id] = self.new_word(player_id)
 
-            explanation = self.explain_synonyms(self.current_word[player_id])
+            explanation = self.explain_main(self.current_word[player_id])
+            logging.info(explanation)
             splitted_text = telebot.util.split_string(explanation, 3000)
-            print(splitted_text)
             for text in splitted_text:
                 self.bot.send_message(player_id, text)
+
+        @self.bot.message_handler(commands = ['repeat'])
+        def repeater(m):
+            player_id = m.chat.id
+            if not player_id in self.players:
+                return
+            if self.current_word[player_id] != "NOTAWORD":
+                explanation = self.explain_main(self.current_word[player_id])
+                logging.info(explanation)
+                splitted_text = telebot.util.split_string(explanation, 3000)
+                for text in splitted_text:
+                    self.bot.send_message(player_id, text)
 
         @self.bot.message_handler(func=lambda message: True)
         def listener(m):
@@ -104,6 +136,7 @@ class GameBot:
             if not player_id in self.players:
                 return
             if m.content_type == "text" and self.current_word[player_id] != "NOTAWORD":
+                    logging.info("Player %s tried word %s" % (str(m.chat.id), self.normal_form(m.text)))
                     if self.current_word[player_id] == self.normal_form(m.text):
                         self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?")
                         self.current_word[player_id] = "NOTAWORD"
