@@ -71,6 +71,7 @@ class GameBot:
         @self.bot.message_handler(commands = ['start'])
         def greeter(m):
             player_id = m.chat.id
+            print(player_id)
             self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!")
             self.players.add(player_id)
             self.current_word[player_id] = "NOTAWORD"
@@ -107,7 +108,7 @@ class GameBot:
                         self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?")
                         self.current_word[player_id] = "NOTAWORD"
                     else:
-                        response = ["Нет!", "Неправильно.", "Неа..."]
+                        response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
                         self.bot.send_message(player_id, random.choice(response))
 
         self.bot.polling()
