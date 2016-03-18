@@ -1,4 +1,7 @@
 # coding=utf-8
+import pymorphy2
+
+morph = pymorphy2.MorphAnalyzer()
 
 def clear_word(word):
     letters = list(u".,…!?-()$#;:+=%^&*<>\"'[]{}\\/~—«»“„\n")
