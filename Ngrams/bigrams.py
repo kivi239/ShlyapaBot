@@ -18,7 +18,7 @@ morph = pymorphy2.MorphAnalyzer()
 
 prev = ""
 # need to find a good corpus for counting bi-grams
-with open('ansi.txt') as f:
+with open('all_texts.in') as f:
     for line in f:
         for word in line.split(" "):
             word = clear_word(word)
