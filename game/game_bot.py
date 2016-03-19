@@ -1,10 +1,12 @@
 # coding=utf-8
 
 import random
+import operator
 import telebot
 import pymorphy2
 from gensim.models import word2vec
 import logging
+from numpy.random import choice
 import config
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -20,6 +22,7 @@ class GameBot:
         self.word_base = set()
         self.word_base_out = {}
         self.current_word = {}
+        self.bigrams = {}
 
         def read_word_base(dictionary, divider = None):
             with open(dictionary, encoding="utf-8") as f:
@@ -37,9 +40,37 @@ class GameBot:
                     for word in line.split(divider)[1:]:
                         self.syn_map[data].add(word)
 
+        def read_bigrams(dictionary, order = "reverse"):
+            with open(dictionary) as f:
+                for line in f.readlines():
+                    if order == "reverse":
+                        data = self.normal_form(line.split()[0])
+                        adjs = line.split()[1:]
+                        if data not in self.bigrams:
+                            self.bigrams[data] = {}
+                        for adj0, adj1 in zip(adjs[0::2], adjs[1::2]):
+                            if adj0 not in self.bigrams[data]:
+                                self.bigrams[data][adj0] = adj1
+                            else:
+                                self.bigrams[data][adj0] += adj1
+                    if order == "direct":
+                        adj = line.split()[0]
+                        nouns = line.split()[1:]
+                        for noun0,noun1 in zip(nouns[0::2], nouns[1::2]):
+                            if self.normal_form(noun0) not in self.bigrams:
+                                self.bigrams[self.normal_form(noun0)] = {}
+                            if adj not in self.bigrams[self.normal_form(noun0)]:
+                                self.bigrams[self.normal_form(noun0)][adj] = noun1
+                            else:
+                                self.bigrams[self.normal_form(noun0)][adj] += noun1
+
         read_word_base(config.syndict[1])
 #        read_syn_dict(config.syndict[0], "|")
         read_syn_dict(config.syndict[1])
+        read_bigrams(config.bigrams[1])
+        read_bigrams(config.bigrams[0], "direct")
+
+
 
         logging.info("Dictionaries loaded")
         self.model = word2vec.Word2Vec.load_word2vec_format(config.corpuses[0], binary=True)
@@ -79,8 +110,23 @@ class GameBot:
                 result += wrd + ", "
         return "Слова, употребляемые в сходном контексте с загаданным:\n" + result[:-2]
 
+    def explain_bigrams(self, word):
+        if not word in self.bigrams:
+            return "Ой! Кажется, с этим словом нет устойчивых выражений...\nНажмите сюда:/repeat"
+        res = []
+        adjs = self.bigrams[word]
+        if len(adjs.keys()) > 3:
+            sorted_adjs = sorted(adjs.items(), key=operator.itemgetter(1))
+            res = [sorted_adjs[0][0], sorted_adjs[1][0], sorted_adjs[2][0]]
+        else:
+            res = adjs.keys()
+        result = ""
+        for word in res:
+            result += word + " X\n"
+        return "Выражения с загаданным словом:\n" + result[:-1]
+
     def explain_main(self,word):
-        return random.choice([self.explain_synonyms, self.explain_closest_words])(word)
+        return choice([self.explain_synonyms, self.explain_closest_words, self.explain_bigrams], p = [0.3, 0.5, 0.2])(word)
 
     def check_roots(self, word, word2):
         return word
