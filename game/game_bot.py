@@ -1,3 +1,5 @@
+# coding=utf-8
+
 import random
 import telebot
 import pymorphy2
@@ -20,14 +22,14 @@ class GameBot:
         self.current_word = {}
 
         def read_word_base(dictionary, divider = None):
-            with open(dictionary) as f:
+            with open(dictionary, encoding="utf-8") as f:
                 for line in f.readlines():
                     word = line.split(divider)[0]
                     if 'NOUN' in self.morph.parse(word)[0].tag:
                         self.word_base.add(word)
 
         def read_syn_dict(dictionary, divider = None):
-            with open(dictionary) as f:
+            with open(dictionary, encoding="utf-8") as f:
                 for line in f.readlines():
                     data = line.split(divider)[0]
                     if data not in self.syn_map:
@@ -40,7 +42,7 @@ class GameBot:
         read_syn_dict(config.syndict[1])
 
         logging.info("Dictionaries loaded")
-        self.model = word2vec.Word2Vec.load_word2vec_format('/Volumes/TRANSCEND/models/ruscorpora.model.bin', binary=True)
+        self.model = word2vec.Word2Vec.load_word2vec_format(config.corpuses[0], binary=True)
 
     def synnorm(self, word):
         norm = self.morph.parse(word)[0].normal_form
