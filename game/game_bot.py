@@ -24,6 +24,12 @@ class GameBot:
         self.current_word = {}
         self.bigrams = {}
 
+        self.buttons = telebot.types.ReplyKeyboardMarkup()
+        self.buttons.row("/repeat", "/next")
+        self.button_next = telebot.types.ReplyKeyboardMarkup()
+        self.button_next.add("/next")
+        self.buttons_hide = telebot.types.ReplyKeyboardHide()
+
         def read_word_base(dictionary, divider = None):
             with open(dictionary, encoding="utf-8") as f:
                 for line in f.readlines():
@@ -92,7 +98,7 @@ class GameBot:
 
     def explain_synonyms(self, word):
         if not word in self.syn_map:
-            return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
+            return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите на /next"
         result = ""
         for wrd in self.syn_map[word]:
             if self.check_roots(wrd, word) != "NOTAWORD":
@@ -140,23 +146,26 @@ class GameBot:
         def greeter(m):
             player_id = m.chat.id
             print(player_id)
-            self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!\n Если застряли - жмите /help!")
+            #self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!\n Если застряли - жмите /help!")
+            self.bot.send_message(player_id, "Здравствуйте! Нажмите /next чтобы играть!\n Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!", reply_markup=self.buttons)
+
             self.players.add(player_id)
             self.current_word[player_id] = "NOTAWORD"
             self.word_base_out[player_id] = set()
 
         @self.bot.message_handler(commands = ['help'])
         def helper(m):
-            self.bot.send_message(m.chat.id, "Help:\n /next чтобы начать играть / пропустить слово. \n /repeat Чтобы впомнить объяснение/получить новое")
-
+            #self.bot.send_message(m.chat.id, "Help:\n /next чтобы начать играть / пропустить слово. \n /repeat Чтобы впомнить объяснение/получить новое")
+            self.bot.send_message(m.chat.id, "Help:\n Нажмите next, чтобы выбрать новое слово. \n Нажмите repeat, чтобы получить новое объяснение", reply_markup=self.buttons)
         @self.bot.message_handler(commands = ['next'])
         def starter(m):
             player_id = m.chat.id
+            print("here")
             if not player_id in self.players:
                 return
 
             if self.current_word[player_id] != "NOTAWORD":
-                self.bot.send_message(player_id, "Вы не угадали слово %s" % (self.current_word[player_id]))
+                self.bot.send_message(player_id, "Вы не угадали слово %s" % (self.current_word[player_id]), reply_markup=self.buttons)
                 self.word_base_out[player_id].add(self.current_word[player_id])
             self.current_word[player_id] = self.new_word(player_id)
 
@@ -164,7 +173,10 @@ class GameBot:
             logging.info(explanation)
             splitted_text = telebot.util.split_string(explanation, 3000)
             for text in splitted_text:
-                self.bot.send_message(player_id, text)
+                if len(text) > 2 and text[0] == 'О' and text[1] == 'й' and text[2] == '!':
+                    self.bot.send_message(player_id, text, reply_markup=self.buttons)
+                else:
+                    self.bot.send_message(player_id, text)
 
         @self.bot.message_handler(commands = ['repeat'])
         def repeater(m):
@@ -176,7 +188,10 @@ class GameBot:
                 logging.info(explanation)
                 splitted_text = telebot.util.split_string(explanation, 3000)
                 for text in splitted_text:
-                    self.bot.send_message(player_id, text)
+                    if len(text) > 2 and text[0] == 'О' and text[1] == 'й' and text[2] == '!':
+                        self.bot.send_message(player_id, text, reply_markup=self.buttons)
+                    else:
+                        self.bot.send_message(player_id, text)
 
         @self.bot.message_handler(func=lambda message: True)
         def listener(m):
@@ -186,7 +201,7 @@ class GameBot:
             if m.content_type == "text" and self.current_word[player_id] != "NOTAWORD":
                     logging.info("Player %s tried word %s" % (str(m.chat.id), self.normal_form(m.text)))
                     if self.current_word[player_id] == self.normal_form(m.text):
-                        self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?")
+                        self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?", reply_markup=self.buttons)
                         self.current_word[player_id] = "NOTAWORD"
                     else:
                         response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
