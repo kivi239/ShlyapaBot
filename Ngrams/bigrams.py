@@ -4,7 +4,6 @@ import operator
 
 B = 2000000 # Number of line to be processed before pushing the results in output file
 
-
 def clear_word(word):
     letters = list("\n.,!?P()[]{}`'\"/~—«»")
     for letter in letters:
@@ -85,13 +84,31 @@ with open('all_texts.in') as f:
 #print(prev_words)
 #print(next_words)
 
+<<<<<<< HEAD
 print_buf()
 """output2 = open('bigrams_prev.txt', 'w')
+=======
+bigrams_next = open('bigrams_next.txt', 'w')
+for key in next_words.keys():
+    sorted_next = sorted(next_words[key].items(), key=operator.itemgetter(1))
+    if len(sorted_next) == 0:
+        continue
+
+    bigrams_next.write(key + ' ')
+    for i in range(min(MAX_COUNT, len(sorted_next))):
+        bigrams_next.write(sorted_next[i][0] + ' ')
+        bigrams_next.write(str(sorted_next[i][1]))
+        bigrams_next.write(' ')
+    bigrams_next.write('\n')
+
+bigrams_prev = open('bigrams_prev.txt', 'w')
+>>>>>>> 07e703143342fb786d3234ecb72991a0e3aded71
 for key in prev_words.keys():
     sorted_prev = sorted(prev_words[key].items(), key=operator.itemgetter(1))
     if len(sorted_prev) == 0:
         continue
 
+<<<<<<< HEAD
     output2.write(key + ' ')
     for i in range(min(10, len(sorted_prev))):
         output2.write(sorted_prev[i][0] + ' ')
@@ -99,3 +116,11 @@ for key in prev_words.keys():
         output2.write(' ')
     output2.write('\n')
 """
+=======
+    bigrams_prev.write(key + ' ')
+    for i in range(min(MAX_COUNT, len(sorted_prev))):
+        bigrams_prev.write(sorted_prev[i][0] + ' ')
+        bigrams_prev.write(str(sorted_prev[i][1]))
+        bigrams_prev.write(' ')
+    bigrams_prev.write('\n')
+>>>>>>> 07e703143342fb786d3234ecb72991a0e3aded71
