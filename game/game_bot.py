@@ -7,6 +7,7 @@ import pymorphy2
 from gensim.models import word2vec
 import logging
 from numpy.random import choice
+from nltk.stem.snowball import SnowballStemmer
 import config
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -74,7 +75,7 @@ class GameBot:
 #        read_syn_dict(config.syndict[0], "|")
         read_syn_dict(config.syndict[1])
         read_bigrams(config.bigrams[1])
-        read_bigrams(config.bigrams[0], "direct")
+        read_bigrams(config.bigrams[0], order = "direct")
 
 
 
@@ -103,6 +104,8 @@ class GameBot:
         for wrd in self.syn_map[word]:
             if self.check_roots(wrd, word) != "NOTAWORD":
                 result += wrd + ", "
+        if result == "":
+            return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
         return "Синонимы к загаданному слову:\n" + result[:-2]
 
     def explain_closest_words(self, word):
@@ -114,6 +117,8 @@ class GameBot:
             wrd = elem[0][:-2]
             if self.check_roots(wrd, word) != "NOTAWORD":
                 result += wrd + ", "
+        if result == "":
+            return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
         return "Слова, употребляемые в сходном контексте с загаданным:\n" + result[:-2]
 
     def explain_bigrams(self, word):
@@ -135,6 +140,36 @@ class GameBot:
         return choice([self.explain_synonyms, self.explain_closest_words, self.explain_bigrams], p = [0.3, 0.5, 0.2])(word)
 
     def check_roots(self, word, word2):
+        def cut_word(word):
+            suffs = []
+            res = [word]
+            for suf in config.suffixes:
+                if word.endswith(suf):
+                    suffs.append(word[:-len(suf)])
+                    res.append(word[:-len(suf)])
+            for aff in config.affixes:
+                for suf in suffs:
+                    if suf.startswith(aff):
+                        res.append(suf[len(aff):])
+            return res
+
+        stemmer = SnowballStemmer("russian")
+        logging.info(word + " vs " +word2)
+        if word in word2 or word2 in word:
+            logging.info("One word contains another")
+            return "NOTAWORD"
+        word_ns = stemmer.stem(self.normal_form(word))
+        word2_ns = stemmer.stem(self.normal_form(word2))
+        logging.info(word_ns + " vs " +word2_ns)
+        if word2_ns in word or word_ns in word2:
+            logging.info("One word contains root of another")
+            return "NOTAWORD"
+        word_cs = cut_word(word_ns)
+        word2_cs = cut_word(word2_ns)
+        logging.info(' '.join(word_cs))
+        logging.info(' '.join(word2_cs))
+        if set(word_cs) & set(word2_cs):
+            return "NOTAWORD"
         return word
 
     def normal_form(self, word):
@@ -145,7 +180,7 @@ class GameBot:
         @self.bot.message_handler(commands = ['start'])
         def greeter(m):
             player_id = m.chat.id
-            print(player_id)
+            logging.info(str(player_id) + " started new game")
             #self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!\n Если застряли - жмите /help!")
             self.bot.send_message(player_id, "Здравствуйте! Нажмите /next чтобы играть!\n Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!", reply_markup=self.buttons)
 
@@ -201,7 +236,7 @@ class GameBot:
             if m.content_type == "text" and self.current_word[player_id] != "NOTAWORD":
                     logging.info("Player %s tried word %s" % (str(m.chat.id), self.normal_form(m.text)))
                     if self.current_word[player_id] == self.normal_form(m.text):
-                        self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?", reply_markup=self.buttons)
+                        self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?", reply_markup=self.button_next)
                         self.current_word[player_id] = "NOTAWORD"
                     else:
                         response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
