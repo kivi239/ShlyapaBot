@@ -49,8 +49,13 @@ class GameBot:
 
         def read_bigrams(dictionary, order = "reverse"):
             with open(dictionary) as f:
+                l_pr = 0
+                r_pr = 0
                 for line in f.readlines():
                     if order == "reverse":
+                        l_pr += 1
+                        if l_pr % 5000 == 0:
+                            logging.info(str(l_pr) + " reverse bigrams processed")
                         data = self.normal_form(line.split()[0])
                         adjs = line.split()[1:]
                         if data not in self.bigrams:
@@ -61,21 +66,26 @@ class GameBot:
                             else:
                                 self.bigrams[data][adj0] += adj1
                     if order == "direct":
+                        r_pr += 1
+                        if r_pr % 5000 == 0:
+                            logging.info(str(r_pr) + " direct bigrams processed")
                         adj = line.split()[0]
                         nouns = line.split()[1:]
                         for noun0,noun1 in zip(nouns[0::2], nouns[1::2]):
-                            if self.normal_form(noun0) not in self.bigrams:
-                                self.bigrams[self.normal_form(noun0)] = {}
-                            if adj not in self.bigrams[self.normal_form(noun0)]:
-                                self.bigrams[self.normal_form(noun0)][adj] = noun1
+                            snf = self.normal_form(noun0)
+                            if snf not in self.bigrams:
+                                self.bigrams[snf] = {}
+                            if adj not in self.bigrams[snf]:
+                                self.bigrams[snf][adj] = noun1
                             else:
-                                self.bigrams[self.normal_form(noun0)][adj] += noun1
+                                self.bigrams[snf][adj] += noun1
 
         read_word_base(config.syndict[1])
 #        read_syn_dict(config.syndict[0], "|")
         read_syn_dict(config.syndict[1])
-        read_bigrams(config.bigrams[1])
+        #read_bigrams(config.bigrams[1])
         read_bigrams(config.bigrams[0], order = "direct")
+        read_bigrams(config.bigrams[2], order = "direct")
 
 
 
@@ -236,7 +246,7 @@ class GameBot:
             if m.content_type == "text" and self.current_word[player_id] != "NOTAWORD":
                     logging.info("Player %s tried word %s" % (str(m.chat.id), self.normal_form(m.text)))
                     if self.current_word[player_id] == self.normal_form(m.text):
-                        self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?", reply_markup=self.button_next)
+                        self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?", reply_markup=self.buttons)
                         self.current_word[player_id] = "NOTAWORD"
                     else:
                         response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
