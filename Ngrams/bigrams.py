@@ -57,7 +57,9 @@ with open('all_texts_2.in') as f:
 
             if word not in next_words:
                 next_words[word] = dict()
-
+            if prev not in next_words:
+                next_words[next] = dict()
+                
             if prev == "":
                 prev = word
                 continue
