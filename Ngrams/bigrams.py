@@ -1,7 +1,7 @@
 #coding=utf-8
 import operator
 
-B = 2000000 # Number of line to be processed before pushing the results in output file
+B = 500000 # Number of line to be processed before pushing the results in output file
 
 def clear_word(word):
     letters = list("\n.,!?P()[]{}`'\"/~—«»")
