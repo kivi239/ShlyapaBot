@@ -1,13 +1,10 @@
 import xml.etree.ElementTree as ET
 import os
-tree = ET.parse('D:/CSC/ShlyapaBot/_Lib.rus.ec - Официальная/lib.rus.ec./fb2-000024-030559/10001.fb2')
-root = tree.getroot()
 
-f = open('all_texts.in', 'w')
+f = open('all_texts_2.in', 'w')
 
-directory = 'D:/CSC/ShlyapaBot/_Lib.rus.ec - Официальная/lib.rus.ec./fb2-000024-030559'
+directory = 'D:/CSC/ShlyapaBot/_Lib.rus.ec - Официальная/lib.rus.ec./fb2-030560-060423'
 files = os.listdir(directory)
-
 
 count = 1
 for file_name in files:

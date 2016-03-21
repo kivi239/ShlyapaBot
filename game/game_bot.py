@@ -7,6 +7,7 @@ import pymorphy2
 from gensim.models import word2vec
 import logging
 from numpy.random import choice
+from nltk.stem.snowball import SnowballStemmer
 import config
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -48,8 +49,13 @@ class GameBot:
 
         def read_bigrams(dictionary, order = "reverse"):
             with open(dictionary) as f:
+                l_pr = 0
+                r_pr = 0
                 for line in f.readlines():
                     if order == "reverse":
+                        l_pr += 1
+                        if l_pr % 5000 == 0:
+                            logging.info(str(l_pr) + " reverse bigrams processed")
                         data = self.normal_form(line.split()[0])
                         adjs = line.split()[1:]
                         if data not in self.bigrams:
@@ -60,21 +66,26 @@ class GameBot:
                             else:
                                 self.bigrams[data][adj0] += adj1
                     if order == "direct":
+                        r_pr += 1
+                        if r_pr % 5000 == 0:
+                            logging.info(str(r_pr) + " direct bigrams processed")
                         adj = line.split()[0]
                         nouns = line.split()[1:]
                         for noun0,noun1 in zip(nouns[0::2], nouns[1::2]):
-                            if self.normal_form(noun0) not in self.bigrams:
-                                self.bigrams[self.normal_form(noun0)] = {}
-                            if adj not in self.bigrams[self.normal_form(noun0)]:
-                                self.bigrams[self.normal_form(noun0)][adj] = noun1
+                            snf = self.normal_form(noun0)
+                            if snf not in self.bigrams:
+                                self.bigrams[snf] = {}
+                            if adj not in self.bigrams[snf]:
+                                self.bigrams[snf][adj] = noun1
                             else:
-                                self.bigrams[self.normal_form(noun0)][adj] += noun1
+                                self.bigrams[snf][adj] += noun1
 
         read_word_base(config.syndict[1])
 #        read_syn_dict(config.syndict[0], "|")
         read_syn_dict(config.syndict[1])
-        read_bigrams(config.bigrams[1])
-        read_bigrams(config.bigrams[0], "direct")
+        #read_bigrams(config.bigrams[1])
+        read_bigrams(config.bigrams[0], order = "direct")
+        read_bigrams(config.bigrams[2], order = "direct")
 
 
 
@@ -103,6 +114,8 @@ class GameBot:
         for wrd in self.syn_map[word]:
             if self.check_roots(wrd, word) != "NOTAWORD":
                 result += wrd + ", "
+        if result == "":
+            return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
         return "Синонимы к загаданному слову:\n" + result[:-2]
 
     def explain_closest_words(self, word):
@@ -114,6 +127,8 @@ class GameBot:
             wrd = elem[0][:-2]
             if self.check_roots(wrd, word) != "NOTAWORD":
                 result += wrd + ", "
+        if result == "":
+            return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
         return "Слова, употребляемые в сходном контексте с загаданным:\n" + result[:-2]
 
     def explain_bigrams(self, word):
@@ -135,6 +150,36 @@ class GameBot:
         return choice([self.explain_synonyms, self.explain_closest_words, self.explain_bigrams], p = [0.3, 0.5, 0.2])(word)
 
     def check_roots(self, word, word2):
+        def cut_word(word):
+            suffs = []
+            res = [word]
+            for suf in config.suffixes:
+                if word.endswith(suf):
+                    suffs.append(word[:-len(suf)])
+                    res.append(word[:-len(suf)])
+            for aff in config.affixes:
+                for suf in suffs:
+                    if suf.startswith(aff):
+                        res.append(suf[len(aff):])
+            return res
+
+        stemmer = SnowballStemmer("russian")
+        logging.info(word + " vs " +word2)
+        if word in word2 or word2 in word:
+            logging.info("One word contains another")
+            return "NOTAWORD"
+        word_ns = stemmer.stem(self.normal_form(word))
+        word2_ns = stemmer.stem(self.normal_form(word2))
+        logging.info(word_ns + " vs " +word2_ns)
+        if word2_ns in word or word_ns in word2:
+            logging.info("One word contains root of another")
+            return "NOTAWORD"
+        word_cs = cut_word(word_ns)
+        word2_cs = cut_word(word2_ns)
+        logging.info(' '.join(word_cs))
+        logging.info(' '.join(word2_cs))
+        if set(word_cs) & set(word2_cs):
+            return "NOTAWORD"
         return word
 
     def normal_form(self, word):
@@ -145,7 +190,7 @@ class GameBot:
         @self.bot.message_handler(commands = ['start'])
         def greeter(m):
             player_id = m.chat.id
-            print(player_id)
+            logging.info(str(player_id) + " started new game")
             self.bot.send_message(player_id, "Здравствуйте! Нажмите /next чтобы играть!\n Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!", reply_markup=self.buttons)
 
             self.players.add(player_id)
