@@ -146,7 +146,6 @@ class GameBot:
         def greeter(m):
             player_id = m.chat.id
             print(player_id)
-            #self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!\n Если застряли - жмите /help!")
             self.bot.send_message(player_id, "Здравствуйте! Нажмите /next чтобы играть!\n Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!", reply_markup=self.buttons)
 
             self.players.add(player_id)
@@ -155,7 +154,6 @@ class GameBot:
 
         @self.bot.message_handler(commands = ['help'])
         def helper(m):
-            #self.bot.send_message(m.chat.id, "Help:\n /next чтобы начать играть / пропустить слово. \n /repeat Чтобы впомнить объяснение/получить новое")
             self.bot.send_message(m.chat.id, "Help:\n Нажмите next, чтобы выбрать новое слово. \n Нажмите repeat, чтобы получить новое объяснение", reply_markup=self.buttons)
         @self.bot.message_handler(commands = ['next'])
         def starter(m):
