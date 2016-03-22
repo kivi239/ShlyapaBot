@@ -1,10 +1,10 @@
 #coding=utf-8
 import operator
 
-B = 500000 # Number of line to be processed before pushing the results in output file
+B = 500000  # Number of line to be processed before pushing the results in output file
 
 def clear_word(word):
-    letters = list("\n.,!?P()[]{}`'\"/~—«»")
+    letters = list("\n.,!?P()[]{}`'\"/~—«»:")
     for letter in letters:
         if word.find(letter) != -1:
             word = word.replace(letter, '')
@@ -52,19 +52,16 @@ with open('all_texts_2.in') as f:
             word = clear_word(word)
             if not is_word(word):
                 continue
-            #tags = morph.parse(word)[0].tag
-            #prev_tags = morph.parse(prev)[0].tag
 
             if word not in next_words:
                 next_words[word] = dict()
             if prev not in next_words:
-                next_words[next] = dict()
-                
+                next_words[prev] = dict()
+
             if prev == "":
                 prev = word
                 continue
 
-            #if 'ADJF' in prev_tags and 'NOUN' in tags:
             if word not in next_words[prev]:
                 next_words[prev][word] = 1
             else:
