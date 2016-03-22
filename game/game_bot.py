@@ -24,6 +24,7 @@ class GameBot:
         self.word_base_out = {}
         self.current_word = {}
         self.bigrams = {}
+        self.probabilities = {}
 
         self.buttons = telebot.types.ReplyKeyboardMarkup()
         self.buttons.row("/repeat", "/next")
@@ -107,7 +108,8 @@ class GameBot:
         logging.info("Загадано слово %s" % word)
         return word
 
-    def explain_synonyms(self, word):
+    def explain_synonyms(self, word, player_id):
+        self.probabilities[player_id] = [0, 0.6, 0.4];
         if not word in self.syn_map:
             return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите на /next"
         result = ""
@@ -118,7 +120,8 @@ class GameBot:
             return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
         return "Синонимы к загаданному слову:\n" + result[:-2]
 
-    def explain_closest_words(self, word):
+    def explain_closest_words(self, word, player_id):
+        self.probabilities[player_id] = [0.5, 0, 0.5];
         word_mod = word + '_S'
         if not word_mod in self.model.vocab:
             return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
@@ -131,7 +134,8 @@ class GameBot:
             return "Ой! Кажется, я загадал вам слово, объяснить которое не могу...\nСкоро это исправим. А пока нажмите сюда:/next"
         return "Слова, употребляемые в сходном контексте с загаданным:\n" + result[:-2]
 
-    def explain_bigrams(self, word):
+    def explain_bigrams(self, word, player_id):
+        self.probabilities[player_id] = [0.4, 0.6, 0];
         if not word in self.bigrams:
             return "Ой! Кажется, с этим словом нет устойчивых выражений...\nНажмите сюда:/repeat"
         res = []
@@ -146,8 +150,8 @@ class GameBot:
             result += word + " X\n"
         return "Выражения с загаданным словом:\n" + result[:-1]
 
-    def explain_main(self,word):
-        return choice([self.explain_synonyms, self.explain_closest_words, self.explain_bigrams], p = [0.3, 0.5, 0.2])(word)
+    def explain_main(self,word, player_id):
+        return choice([self.explain_synonyms, self.explain_closest_words, self.explain_bigrams], p = self.probabilities[player_id])(word, player_id)
 
     def check_roots(self, word, word2):
         def cut_word(word):
@@ -191,7 +195,6 @@ class GameBot:
         def greeter(m):
             player_id = m.chat.id
             logging.info(str(player_id) + " started new game")
-            #self.bot.send_message(player_id, "Здравствуйте! Введите /next чтобы играть!\n Если застряли - жмите /help!")
             self.bot.send_message(player_id, "Здравствуйте! Нажмите /next чтобы играть!\n Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!", reply_markup=self.buttons)
 
             self.players.add(player_id)
@@ -200,11 +203,11 @@ class GameBot:
 
         @self.bot.message_handler(commands = ['help'])
         def helper(m):
-            #self.bot.send_message(m.chat.id, "Help:\n /next чтобы начать играть / пропустить слово. \n /repeat Чтобы впомнить объяснение/получить новое")
             self.bot.send_message(m.chat.id, "Help:\n Нажмите next, чтобы выбрать новое слово. \n Нажмите repeat, чтобы получить новое объяснение", reply_markup=self.buttons)
         @self.bot.message_handler(commands = ['next'])
         def starter(m):
             player_id = m.chat.id
+            self.probabilities[player_id] = [0.3, 0.5, 0.2];
             print("here")
             if not player_id in self.players:
                 return
@@ -214,7 +217,7 @@ class GameBot:
                 self.word_base_out[player_id].add(self.current_word[player_id])
             self.current_word[player_id] = self.new_word(player_id)
 
-            explanation = self.explain_main(self.current_word[player_id])
+            explanation = self.explain_main(self.current_word[player_id], player_id)
             logging.info(explanation)
             splitted_text = telebot.util.split_string(explanation, 3000)
             for text in splitted_text:
@@ -229,7 +232,7 @@ class GameBot:
             if not player_id in self.players:
                 return
             if self.current_word[player_id] != "NOTAWORD":
-                explanation = self.explain_main(self.current_word[player_id])
+                explanation = self.explain_main(self.current_word[player_id], player_id)
                 logging.info(explanation)
                 splitted_text = telebot.util.split_string(explanation, 3000)
                 for text in splitted_text:
