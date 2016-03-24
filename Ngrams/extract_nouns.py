@@ -7,11 +7,15 @@ morph = pymorphy2.MorphAnalyzer()
 
 next_words = dict()
 
-output = open('bigrams_with_nouns.txt', 'a')
+output = open('bigrams_with_nouns.txt', 'w')
 
 
 def print_buf():
+    cnt = 0
+    print("Saving to file")
+    size = len(next_words.keys())
     for key in next_words.keys():
+        print(str(cnt) + " out of " + str(size))
         sorted_next = sorted(next_words[key].items(), key=operator.itemgetter(1))
         length = len(sorted_next)
         if length == 0:
@@ -28,6 +32,7 @@ def print_buf():
             output.write(str(sorted_next[length - size + i][1]))
             output.write(' ')
         output.write('\n')
+        cnt += 1
 
 with open('bigrams_next.txt') as f:
     cnt = 0
@@ -41,7 +46,7 @@ with open('bigrams_next.txt') as f:
             next_words[key] = dict()
         for i in range(1, len(data) // 2):
             word = data[2 * i - 1]
-            count = data[2 * i]
+            count = int(data[2 * i])
             tags = morph.parse(word)[0].tag
             if 'NOUN' in tags:
                 if word not in next_words[key]:
