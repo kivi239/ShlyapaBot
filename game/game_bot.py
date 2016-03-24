@@ -25,12 +25,15 @@ class GameBot:
         self.current_word = {}
         self.bigrams = {}
         self.probabilities = {}
-
         self.buttons = telebot.types.ReplyKeyboardMarkup()
         self.buttons.row("/repeat", "/next")
+        self.level_buttons = telebot.types.ReplyKeyboardMarkup(row_width = 1)
+        self.level_buttons.add("easy", "normal", "hard", "nightmare")
+        self.level_pending = {}
         self.button_next = telebot.types.ReplyKeyboardMarkup()
         self.button_next.add("/next")
         self.buttons_hide = telebot.types.ReplyKeyboardHide()
+        self.loggers = {}
 
         def read_word_base(dictionary, divider=None):
             with open(dictionary, encoding="utf-8") as fil:
@@ -84,9 +87,10 @@ class GameBot:
         read_word_base(config.syndict[1])
 #        read_syn_dict(config.syndict[0], "|")
         read_syn_dict(config.syndict[1])
-        #read_bigrams(config.bigrams[1])
+#        read_bigrams(config.bigrams[1])
 #        read_bigrams(config.bigrams[0], order="direct")
-        read_bigrams(config.bigrams[2], order="direct")
+#        read_bigrams(config.bigrams[2], order="direct")
+        read_bigrams(config.bigrams[3])
 
 
 
@@ -106,10 +110,12 @@ class GameBot:
     def new_word(self, player_id):
         word = random.choice(tuple(self.word_base ^ self.word_base_out[player_id]))
         logging.info("Загадано слово %s" % word)
+        self.loggers[player_id].info("Загадано слово %s" % word)
         return word
 
     def explain_synonyms(self, word, player_id):
         self.probabilities[player_id] = [0, 0.6, 0.4]
+        self.loggers[player_id].info("Объяснение синонимами")
         if not word in self.syn_map:
             return '''Ой! Кажется, я загадал вам слово, объяснить которое не могу...
 Скоро это исправим. А пока нажмите на /next'''
@@ -124,6 +130,7 @@ class GameBot:
 
     def explain_closest_words(self, word, player_id):
         self.probabilities[player_id] = [0.5, 0, 0.5]
+        self.loggers[player_id].info("Объяснение контекстом")
         word_mod = word + '_S'
         if not word_mod in self.model.vocab:
             return '''Ой! Кажется, я загадал вам слово, объяснить которое не могу...
@@ -140,6 +147,7 @@ class GameBot:
 
     def explain_bigrams(self, word, player_id):
         self.probabilities[player_id] = [0.4, 0.6, 0]
+        self.loggers[player_id].info("Объяснение биграммами")
         if not word in self.bigrams:
             return "Ой! Кажется, с этим словом нет устойчивых выражений...\nНажмите сюда:/repeat"
         res = []
@@ -200,28 +208,44 @@ class GameBot:
         def greeter(mess):
             player_id = mess.chat.id
             logging.info(str(player_id) + " started new game")
-            self.bot.send_message(player_id, '''Здравствуйте! Нажмите /next чтобы играть!
-Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!''',
-                                  reply_markup=self.buttons)
-
+            self.level_pending[player_id] = True
             self.players.add(player_id)
             self.current_word[player_id] = "NOTAWORD"
             self.word_base_out[player_id] = set()
+            self.loggers[player_id] = logging.getLogger(str(player_id))
+            self.loggers[player_id].setLevel(logging.INFO)
+            handler = logging.FileHandler(str(player_id) + ".log")
+            self.loggers[player_id].addHandler(handler)
+            self.loggers[player_id].info("Новая игра")
+            self.bot.send_message(player_id, '''Здравствуйте! Выберите уровень сложности!
+Нажмите /next чтобы выбрать другое слово!
+Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!''',
+                                  reply_markup=self.level_buttons)
+
+            
 
         @self.bot.message_handler(commands=['help'])
         def helper(mess):
+            player_id = mess.chat.id
+            if not player_id in self.players:
+                greeter(mess)
+                return
+            self.loggers[player_id].info("Просьба помощи")
             self.bot.send_message(mess.chat.id, '''Help:\n Нажмите next,
 чтобы выбрать новое слово.
 Нажмите repeat, чтобы получить новое объяснение''', reply_markup=self.buttons)
+
         @self.bot.message_handler(commands=['next'])
         def starter(mess):
             player_id = mess.chat.id
             self.probabilities[player_id] = [0.3, 0.5, 0.2]
             print("here")
             if not player_id in self.players:
+                greeter(mess)
                 return
 
             if self.current_word[player_id] != "NOTAWORD":
+                self.loggers[player_id].info("Слово не угадано")
                 self.bot.send_message(player_id, "Вы не угадали слово %s" %
                                       (self.current_word[player_id]),
                                       reply_markup=self.buttons)
@@ -241,8 +265,10 @@ class GameBot:
         def repeater(mess):
             player_id = mess.chat.id
             if not player_id in self.players:
+                greeter(mess)
                 return
             if self.current_word[player_id] != "NOTAWORD":
+                self.loggers[player_id].info("Повтор подсказки")
                 explanation = self.explain_main(self.current_word[player_id], player_id)
                 logging.info(explanation)
                 splitted_text = telebot.util.split_string(explanation, 3000)
@@ -252,17 +278,35 @@ class GameBot:
                     else:
                         self.bot.send_message(player_id, text)
 
+        @self.bot.message_handler(func=lambda message: (message.text in config.levels.keys()))
+        def leveller(mess):
+            player_id = mess.chat.id
+            if not player_id in self.players:
+                greeter(mess)
+                return
+            self.loggers[player_id].info("Выбран уровень: %s" % mess.text)
+            self.bot.send_message(player_id, config.level_responses[mess.text] + "\nНажмите /next, чтобы играть!",
+                                  reply_markup=self.buttons)
+            self.level_pending[player_id] = False
+
         @self.bot.message_handler(func=lambda message: True)
         def listener(mess):
             player_id = mess.chat.id
             if not player_id in self.players:
+                greeter(mess)
                 return
+            if self.level_pending[player_id]:
+                self.bot.send_message(player_id, config.level_responses["all"] + "\nНажмите /next, чтобы играть!",
+                                      reply_markup=self.buttons)
+                self.level_pending[player_id] = False
             if mess.content_type == "text" and self.current_word[player_id] != "NOTAWORD":
                 logging.info("Player %s tried word %s" %
                              (str(mess.chat.id), self.normal_form(mess.text)))
+                self.loggers[player_id].info("Попытка: %s" % self.normal_form(mess.text))
                 if self.current_word[player_id] == self.normal_form(mess.text):
                     self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?",
                                           reply_markup=self.buttons)
+                    self.loggers[player_id].info("Слово угадано")
                     self.current_word[player_id] = "NOTAWORD"
                 else:
                     response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
