@@ -3,6 +3,7 @@
 import random
 import operator
 import logging
+import collections
 import telebot
 import pymorphy2
 from gensim.models import word2vec
@@ -63,12 +64,16 @@ class GameBot:
                         data = self.normal_form(line.split()[0])
                         adjs = line.split()[1:]
                         if data not in self.bigrams:
-                            self.bigrams[data] = {}
+                            self.bigrams[data] = collections.defaultdict(int)
+#                            self.bigrams[data] = {}
                         for adj0, adj1 in zip(adjs[0::2], adjs[1::2]):
-                            if adj0 not in self.bigrams[data]:
-                                self.bigrams[data][adj0] = adj1
-                            else:
-                                self.bigrams[data][adj0] += adj1
+#                            if adj0 not in self.bigrams[data]:
+#                                self.bigrams[data][adj0] = adj1
+#                            else:
+                            try:
+                                self.bigrams[data][adj0] += int(adj1)
+                            except ValueError:
+                                self.bigrams[data][adj0] += 0
                     if order == "direct":
                         r_pr += 1
                         if r_pr % 5000 == 0:
@@ -78,12 +83,16 @@ class GameBot:
                         for noun0, noun1 in zip(nouns[0::2], nouns[1::2]):
                             snf = self.normal_form(noun0)
                             if snf not in self.bigrams:
-                                self.bigrams[snf] = {}
-                            if adj not in self.bigrams[snf]:
-                                self.bigrams[snf][adj] = noun1
-                            else:
-                                self.bigrams[snf][adj] += noun1
-
+                                self.bigrams[snf] = collections.defaultdict(int)
+#                                self.bigrams[snf] = {}
+#                            if adj not in self.bigrams[snf]:
+#                                self.bigrams[snf][adj] = noun1
+#                            else:
+                            try:
+                                self.bigrams[snf][adj] += int(noun1)
+                            except ValueError:
+                                self.bigrams[snf][adj] += 0
+                        
         read_word_base(config.syndict[1])
 #        read_syn_dict(config.syndict[0], "|")
         read_syn_dict(config.syndict[1])
