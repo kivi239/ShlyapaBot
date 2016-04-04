@@ -45,7 +45,11 @@ class GameBot:
 
         def read_syn_dict(dictionary, divider=None):
             with open(dictionary, encoding="utf-8") as fil:
+                l_pr = 0
                 for line in fil.readlines():
+                    l_pr += 1
+                    if l_pr % 1000 == 0:
+                        logging.info(str(l_pr) + " reverse bigrams processed")
                     data = line.split(divider)[0]
                     if data not in self.syn_map:
                         self.syn_map[data] = set()
@@ -123,47 +127,53 @@ class GameBot:
         return word
 
     def explain_synonyms(self, word, player_id):
-        self.probabilities[player_id] = [0, 0.6, 0.4]
+        self.probabilities[player_id][0] = 0
         self.loggers[player_id].info("Объяснение синонимами")
         if not word in self.syn_map:
-            return '''Ой! Кажется, я загадал вам слово, объяснить которое не могу...
-Скоро это исправим. А пока нажмите на /next'''
+            return config.NOTAWORD
         result = ""
         for wrd in self.syn_map[word]:
-            if self.check_roots(wrd, word) != "NOTAWORD":
+            if self.check_roots(wrd, word) != config.NOTAWORD:
                 result += wrd + ", "
         if result == "":
-            return '''Ой! Кажется, я загадал вам слово, объяснить которое не могу...
-Скоро это исправим. А пока нажмите сюда:/next'''
+            return config.NOTAWORD
         return "Синонимы к загаданному слову:\n" + result[:-2]
 
     def explain_closest_words(self, word, player_id):
-        self.probabilities[player_id] = [0.5, 0, 0.5]
+        self.probabilities[player_id][1] = 0
         self.loggers[player_id].info("Объяснение контекстом")
         word_mod = word + '_S'
         if not word_mod in self.model.vocab:
-            return '''Ой! Кажется, я загадал вам слово, объяснить которое не могу...
-Скоро это исправим. А пока нажмите сюда:/next'''
+            return config.NOTAWORD
         result = ""
         for elem in self.model.most_similar(word_mod):
             wrd = elem[0][:-2]
-            if self.check_roots(wrd, word) != "NOTAWORD":
+            if self.check_roots(wrd, word) != config.NOTAWORD:
                 result += wrd + ", "
         if result == "":
-            return '''Ой! Кажется, я загадал вам слово, объяснить которое не могу...
-Скоро это исправим. А пока нажмите сюда:/next'''
+            return config.NOTAWORD
         return "Слова, употребляемые в сходном контексте с загаданным:\n" + result[:-2]
 
     def explain_bigrams(self, word, player_id):
-        self.probabilities[player_id] = [0.4, 0.6, 0]
+        self.probabilities[player_id][2] = 0
+        self.loggers[player_id].info("Объяснение контекстом")
         self.loggers[player_id].info("Объяснение биграммами")
         if not word in self.bigrams:
-            return "Ой! Кажется, с этим словом нет устойчивых выражений...\nНажмите сюда:/repeat"
+            return config.NOTAWORD
         res = []
         adjs = self.bigrams[word]
         if len(adjs.keys()) > 3:
-            sorted_adjs = sorted(adjs.items(), key=operator.itemgetter(1))
-            res = [sorted_adjs[0][0], sorted_adjs[1][0], sorted_adjs[2][0]]
+            print(adjs)
+            sorted_adjs = [x[0] for x in sorted(adjs.items(), key=operator.itemgetter(1), reverse = True)]
+            if self.check_roots(sorted_adjs[0],word) != config.NOTAWORD:
+                res = [sorted_adjs[0]]
+            
+            for wrd in sorted_adjs:
+                if len(res) >= 3:
+                    break
+                if self.normal_form(wrd) not in [self.normal_form(x) for x in res] and \
+                   self.check_roots(wrd,word) != config.NOTAWORD:
+                    res.append(wrd)
         else:
             res = adjs.keys()
         result = ""
@@ -172,8 +182,25 @@ class GameBot:
         return "Выражения с загаданным словом:\n" + result[:-1]
 
     def explain_main(self, word, player_id):
-        return choice([self.explain_synonyms, self.explain_closest_words, self.explain_bigrams],
+        if sum(self.probabilities[player_id]) == 0:
+            self.probabilities[player_id] = [0.3, 0.5, 0.2]
+        explanation = config.NOTAWORD
+        while explanation == config.NOTAWORD and sum(self.probabilities[player_id]) != 0:
+            sump = sum(self.probabilities[player_id])
+            if sump != 1:
+                for i, prob in enumerate(self.probabilities[player_id]):
+                    if prob != 0:
+                        self.probabilities[player_id][i] += (1 - sump)
+                        break
+            explanation = choice([self.explain_synonyms, self.explain_closest_words, self.explain_bigrams],
                       p=self.probabilities[player_id])(word, player_id)
+        if explanation == config.NOTAWORD:
+            if set(self.probabilities[player_id]) == set([0.3, 0.5, 0.2]):
+                return '''Ой! Кажется, я загадал вам слово, объяснить которое не могу...
+Скоро это исправим. А пока нажмите сюда:/next'''
+            else:
+                explanation = self.explain_main(word, player_id)
+        return explanation
 
     def check_roots(self, word, word2):
         def cut_word(word):
@@ -189,23 +216,30 @@ class GameBot:
                         res.append(suf[len(aff):])
             return res
 
+        def cut_deep(word):
+            res_start = cut_word(word)
+            res  = []
+            for wrd in res_start:
+                res = res + cut_word(wrd)
+                return res
+
         stemmer = SnowballStemmer("russian")
         logging.info(word + " vs " +word2)
         if word in word2 or word2 in word:
             logging.info("One word contains another")
-            return "NOTAWORD"
+            return config.NOTAWORD
         word_ns = stemmer.stem(self.normal_form(word))
         word2_ns = stemmer.stem(self.normal_form(word2))
         logging.info(word_ns + " vs " +word2_ns)
         if word2_ns in word or word_ns in word2:
             logging.info("One word contains root of another")
-            return "NOTAWORD"
-        word_cs = cut_word(word_ns)
-        word2_cs = cut_word(word2_ns)
+            return config.NOTAWORD
+        word_cs = cut_deep(word_ns)
+        word2_cs = cut_deep(word2_ns)
         logging.info(' '.join(word_cs))
         logging.info(' '.join(word2_cs))
         if set(word_cs) & set(word2_cs):
-            return "NOTAWORD"
+            return config.NOTAWORD
         return word
 
     def normal_form(self, word):
@@ -219,7 +253,7 @@ class GameBot:
             logging.info(str(player_id) + " started new game")
             self.level_pending[player_id] = True
             self.players.add(player_id)
-            self.current_word[player_id] = "NOTAWORD"
+            self.current_word[player_id] = config.NOTAWORD
             self.word_base_out[player_id] = set()
             self.loggers[player_id] = logging.getLogger(str(player_id))
             self.loggers[player_id].setLevel(logging.INFO)
@@ -253,7 +287,7 @@ class GameBot:
                 greeter(mess)
                 return
 
-            if self.current_word[player_id] != "NOTAWORD":
+            if self.current_word[player_id] != config.NOTAWORD:
                 self.loggers[player_id].info("Слово не угадано")
                 self.bot.send_message(player_id, "Вы не угадали слово %s" %
                                       (self.current_word[player_id]),
@@ -276,7 +310,7 @@ class GameBot:
             if not player_id in self.players:
                 greeter(mess)
                 return
-            if self.current_word[player_id] != "NOTAWORD":
+            if self.current_word[player_id] != config.NOTAWORD:
                 self.loggers[player_id].info("Повтор подсказки")
                 explanation = self.explain_main(self.current_word[player_id], player_id)
                 logging.info(explanation)
@@ -298,6 +332,23 @@ class GameBot:
                                   reply_markup=self.buttons)
             self.level_pending[player_id] = False
 
+        @self.bot.message_handler(func=lambda message: (message.text.startswith("Загадай")))
+        def secret(mess):
+            player_id = mess.chat.id
+            if not player_id in self.players:
+                self.bot.send_message(player_id, "Секретное меню - только для залогиненных пользователей, нажмите /start")
+                return
+            word = mess.text.split()[1]
+            for expl in [self.explain_synonyms, self.explain_closest_words, self.explain_bigrams]:
+                explanation = expl(word, player_id)
+                logging.info(explanation)
+                splitted_text = telebot.util.split_string(explanation, 3000)
+                for text in splitted_text:
+                    if len(text) > 2 and text[0] == 'О' and text[1] == 'й' and text[2] == '!':
+                        self.bot.send_message(player_id, text, reply_markup=self.buttons)
+                    else:
+                        self.bot.send_message(player_id, text)
+
         @self.bot.message_handler(func=lambda message: True)
         def listener(mess):
             player_id = mess.chat.id
@@ -308,7 +359,7 @@ class GameBot:
                 self.bot.send_message(player_id, config.level_responses["all"] + "\nНажмите /next, чтобы играть!",
                                       reply_markup=self.buttons)
                 self.level_pending[player_id] = False
-            if mess.content_type == "text" and self.current_word[player_id] != "NOTAWORD":
+            if mess.content_type == "text" and self.current_word[player_id] != config.NOTAWORD:
                 logging.info("Player %s tried word %s" %
                              (str(mess.chat.id), self.normal_form(mess.text)))
                 self.loggers[player_id].info("Попытка: %s" % self.normal_form(mess.text))
@@ -316,7 +367,7 @@ class GameBot:
                     self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?",
                                           reply_markup=self.buttons)
                     self.loggers[player_id].info("Слово угадано")
-                    self.current_word[player_id] = "NOTAWORD"
+                    self.current_word[player_id] = config.NOTAWORD
                 else:
                     response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
                     self.bot.send_message(player_id, random.choice(response))
