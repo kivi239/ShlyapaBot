@@ -21,7 +21,7 @@ def remove_empty_strings(data):
 
 freq_dict = dict()
 
-with open('../synonymdict/litc-win.txt') as f:
+with open('../synonymdict/dict_of_words.txt') as f:
     for line in f:
         data = line.split(" ")
         data = remove_empty_strings(data)
@@ -29,27 +29,26 @@ with open('../synonymdict/litc-win.txt') as f:
         word = clear_word(data[1])
         tags = morph.parse(word)[0].tag
 
-
         if 'NOUN' not in tags:
             continue
 
         word = morph.parse(word.rstrip())[0].normal_form
+        if word[0].isupper():
+            continue
         if word not in freq_dict:
             freq_dict[word] = count
         else:
             freq_dict[word] += count
 
-freq_dict = {k:v for k, v  in freq_dict.items() if v > 1}
+freq_dict = {k:v for k, v in freq_dict.items() if v > 1}
 
 sorted_words = sorted(freq_dict.items(), key=operator.itemgetter(1))
 length = len(sorted_words)
 
 prev_freq = 1e9
 
-files = [open('easy.txt', 'w'), open('normal.txt', 'w'), open('hard.txt', 'w'), open('nightmare.txt', 'w')]
-all_words = open('all_levels.txt', 'w')
-
-
+files = [open('easy.txt', decoding="utf-8"), open('normal.txt', decoding="utf-8"), open('hard.txt', decoding="utf-8"), open('nightmare.txt', decoding="utf-8")]
+all_words = open('all_levels.txt', decoding="utf-8")
 
 print(length)
 id = -1
