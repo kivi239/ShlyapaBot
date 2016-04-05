@@ -172,7 +172,7 @@ class GameBot:
             return config.NOTAWORD
         result = ""
         for elem in self.model.most_similar(word_mod):
-            wrd = elem[0][:-2]
+            wrd = elem[0].split('_')[0]
             if self.check_roots(wrd, word) != config.NOTAWORD:
                 result += wrd + ", "
         if result == "":
@@ -181,7 +181,6 @@ class GameBot:
 
     def explain_bigrams(self, word, player_id):
         self.probabilities[player_id][2] = 0
-        self.loggers[player_id].info("Объяснение контекстом")
         self.loggers[player_id].info("Объяснение биграммами")
         if word not in self.bigrams:
             return config.NOTAWORD
