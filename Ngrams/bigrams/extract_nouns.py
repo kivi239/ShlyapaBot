@@ -45,23 +45,31 @@ with open('../../BIG_files/2grams-3.txt', encoding='utf-8') as f:
         else:
             next_words[data[2]][data[1]] += freq
 
-#for word in next_words:
-#    for neighbor in next_words[word]:
-#        neighbor = morph.parse()
-
-
 g = open('ruscorp_bigrams_reordered.txt', 'w', encoding='utf-8')
 
 for word in next_words.keys():
-    sorted_next = sorted(next_words[word].items(), key=operator.itemgetter(1))
+    sorted_next = sorted(next_words[word].items(), key=operator.itemgetter(1), reverse=True)
     length = len(sorted_next)
     if length == 0:
         continue
     g.write(word + ' ')
     size = min(15, len(sorted_next))
+    was = [False] * size
     for i in range(size):
-        g.write(sorted_next[length - size + i][0] + ' ')
-        g.write(str(sorted_next[length - size + i][1]))
+        word = sorted_next[i][0]
+        norm = morph.parse(word)[0].normal_form
+        for j in range(i + 1, size):
+            cur_word = sorted_next[j][0]
+            normal_form = morph.parse(cur_word)[0].normal_form
+            if norm == normal_form:
+                was[j] = True
+                sorted_next[i] = (sorted_next[i][0], sorted_next[i][1] + sorted_next[j][1])
+
+    for i in range(size):
+        if was[i]:
+            continue
+        g.write(sorted_next[i][0] + ' ')
+        g.write(str(sorted_next[i][1]))
         g.write(' ')
     g.write('\n')
 
