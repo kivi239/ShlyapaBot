@@ -13,6 +13,7 @@ import config
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
+
 class GameBot:
     """Shlyapa game bot"""
     def __init__(self):
@@ -136,7 +137,7 @@ class GameBot:
 
     def synnorm(self, word):
         norm = self.morph.parse(word)[0].normal_form
-        if not norm in self.syn_map:
+        if norm not in self.syn_map:
             return norm
         result = ""
         for word in self.syn_map[norm]:
@@ -153,7 +154,7 @@ class GameBot:
     def explain_synonyms(self, word, player_id):
         self.probabilities[player_id][0] = 0
         self.loggers[player_id].info("Объяснение синонимами")
-        if not word in self.syn_map:
+        if word not in self.syn_map:
             return config.NOTAWORD
         result = ""
         for wrd in self.syn_map[word]:
@@ -167,7 +168,7 @@ class GameBot:
         self.probabilities[player_id][1] = 0
         self.loggers[player_id].info("Объяснение контекстом")
         word_mod = word + '_S'
-        if not word_mod in self.model.vocab:
+        if word_mod not in self.model.vocab:
             return config.NOTAWORD
         result = ""
         for elem in self.model.most_similar(word_mod):
@@ -182,21 +183,21 @@ class GameBot:
         self.probabilities[player_id][2] = 0
         self.loggers[player_id].info("Объяснение контекстом")
         self.loggers[player_id].info("Объяснение биграммами")
-        if not word in self.bigrams:
+        if word not in self.bigrams:
             return config.NOTAWORD
         res = []
         adjs = self.bigrams[word]
         if len(adjs.keys()) > 3:
             print(adjs)
-            sorted_adjs = [x[0] for x in sorted(adjs.items(), key=operator.itemgetter(1), reverse = True)]
-            if self.check_roots(sorted_adjs[0],word) != config.NOTAWORD:
+            sorted_adjs = [x[0] for x in sorted(adjs.items(), key=operator.itemgetter(1), reverse=True)]
+            if self.check_roots(sorted_adjs[0], word) != config.NOTAWORD:
                 res = [sorted_adjs[0]]
             
             for wrd in sorted_adjs:
                 if len(res) >= 3:
                     break
                 if self.normal_form(wrd) not in [self.normal_form(x) for x in res] and \
-                   self.check_roots(wrd,word) != config.NOTAWORD:
+                   self.check_roots(wrd, word) != config.NOTAWORD:
                     res.append(wrd)
         else:
             res = adjs.keys()
@@ -242,7 +243,7 @@ class GameBot:
 
         def cut_deep(word):
             res_start = cut_word(word)
-            res  = []
+            res = []
             for wrd in res_start:
                 res = res + cut_word(wrd)
                 return res
@@ -254,7 +255,7 @@ class GameBot:
             return config.NOTAWORD
         word_ns = stemmer.stem(self.normal_form(word))
         word2_ns = stemmer.stem(self.normal_form(word2))
-        logging.info(word_ns + " vs " +word2_ns)
+        logging.info(word_ns + " vs " + word2_ns)
         if word2_ns in word or word_ns in word2:
             logging.info("One word contains root of another")
             return config.NOTAWORD
@@ -289,12 +290,10 @@ class GameBot:
 Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!''',
                                   reply_markup=self.level_buttons)
 
-            
-
         @self.bot.message_handler(commands=['help'])
         def helper(mess):
             player_id = mess.chat.id
-            if not player_id in self.players:
+            if player_id not in self.players:
                 greeter(mess)
                 return
             self.loggers[player_id].info("Просьба помощи")
@@ -331,7 +330,7 @@ class GameBot:
         @self.bot.message_handler(commands=['repeat'])
         def repeater(mess):
             player_id = mess.chat.id
-            if not player_id in self.players:
+            if player_id not in self.players:
                 greeter(mess)
                 return
             if self.current_word[player_id] != config.NOTAWORD:
@@ -348,7 +347,7 @@ class GameBot:
         @self.bot.message_handler(func=lambda message: (message.text in config.levels.keys()))
         def leveller(mess):
             player_id = mess.chat.id
-            if not player_id in self.players:
+            if player_id not in self.players:
                 greeter(mess)
                 return
             self.loggers[player_id].info("Выбран уровень: %s" % mess.text)
