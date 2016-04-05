@@ -58,7 +58,7 @@ class GameBot:
                         self.syn_map[data].add(word)
 
         def read_bigrams(dictionary, order="reverse"):
-            with open(dictionary) as fil:
+            with open(dictionary, encoding='utf-8') as fil:
                 l_pr = 0
                 r_pr = 0
                 for line in fil.readlines():
