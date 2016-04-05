@@ -110,6 +110,30 @@ class GameBot:
         logging.info("Dictionaries loaded")
         self.model = word2vec.Word2Vec.load_word2vec_format(config.corpuses[0], binary=True)
 
+    def similar_words(self, word1, word2):
+        n = len(word1)
+        m = len(word2)
+        d = [None] * (n + 1)
+        for i in range(n + 1):
+            d[i] = []
+            for j in range(m + 1):
+                d[i].append(int(1e9))
+        for i in range(n):
+            d[i + 1][0] = i
+        for i in range(m):
+            d[0][i + 1] = i
+        d[0][0] = 0
+
+        for i in range(n):
+            for j in range(m):
+                d[i + 1][j + 1] = min(d[i + 1][j + 1], d[i][j + 1] + 1, d[i + 1][j] + 1)
+                diff = 1
+                if word1[i] == word2[j]:
+                    diff = 0
+                d[i + 1][j + 1] = min(d[i + 1][j + 1], d[i][j] + diff)
+
+        return d[n][m] <= 2
+
     def synnorm(self, word):
         norm = self.morph.parse(word)[0].normal_form
         if not norm in self.syn_map:
@@ -363,8 +387,9 @@ class GameBot:
                 logging.info("Player %s tried word %s" %
                              (str(mess.chat.id), self.normal_form(mess.text)))
                 self.loggers[player_id].info("Попытка: %s" % self.normal_form(mess.text))
-                if self.current_word[player_id] == self.normal_form(mess.text):
-                    self.bot.send_message(player_id, "Отлично! Сыграем снова: /next?",
+                if self.similar_words(self.current_word[player_id], self.normal_form(mess.text)):
+                    self.bot.send_message(player_id, "Отлично! Вы отгадали слово %s Сыграем снова: /next?"
+                                          % self.current_word[player_id],
                                           reply_markup=self.buttons)
                     self.loggers[player_id].info("Слово угадано")
                     self.current_word[player_id] = config.NOTAWORD
