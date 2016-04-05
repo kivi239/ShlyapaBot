@@ -31,7 +31,7 @@ with open('../../BIG_files/2grams-3.txt', encoding='utf-8') as f:
             tags = morph.parse(data[1])[0].tag
             word_tags[data[1]] = tags
 
-        if 'PREP' in tags:
+        if 'PREP' in tags or 'CONJ' in tags:
             continue
 
         if 'NOUN' not in word_tags[normal_form]:

@@ -105,7 +105,7 @@ class GameBot:
 #        read_bigrams(config.bigrams[0], order="direct")
 #        read_bigrams(config.bigrams[2], order="direct")
         read_bigrams(config.bigrams[3])
-
+        read_bigrams(config.bigrams[4])
 
 
         logging.info("Dictionaries loaded")
