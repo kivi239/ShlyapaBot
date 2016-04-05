@@ -387,7 +387,7 @@ class GameBot:
                              (str(mess.chat.id), self.normal_form(mess.text)))
                 self.loggers[player_id].info("Попытка: %s" % self.normal_form(mess.text))
                 if self.similar_words(self.current_word[player_id], self.normal_form(mess.text)):
-                    self.bot.send_message(player_id, "Отлично! Вы отгадали слово %s Сыграем снова: /next?"
+                    self.bot.send_message(player_id, "Отлично! Вы отгадали слово %s.\n Сыграем снова: /next?"
                                           % self.current_word[player_id],
                                           reply_markup=self.buttons)
                     self.loggers[player_id].info("Слово угадано")
