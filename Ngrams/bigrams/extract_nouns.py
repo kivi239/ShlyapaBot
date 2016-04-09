@@ -31,11 +31,13 @@ with open('../../BIG_files/2grams-3.txt', encoding='utf-8') as f:
             tags = morph.parse(data[1])[0].tag
             word_tags[data[1]] = tags
 
-        if 'PREP' in tags or 'CONJ' in tags:
+        if 'PREP' in tags or 'CONJ' in tags or 'NPRO' in tags or 'PRCL' in tags:
             continue
 
         if 'NOUN' not in word_tags[normal_form]:
             continue
+
+
 
         freq = int(data[0])
         if data[2] not in next_words:
