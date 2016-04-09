@@ -1,3 +1,5 @@
+# encoding=utf-8
+
 import pymorphy2
 import operator
 
@@ -21,18 +23,23 @@ def remove_empty_strings(data):
 
 freq_dict = dict()
 
-with open('../synonymdict/all_from_easy.txt') as f:
+with open('../synonymdict/1grams-3.txt', encoding='utf-8') as f:
     for line in f:
-        data = line.split(" ")
+        line = line.rstrip("\n")
+        data = line.split("\t")
         data = remove_empty_strings(data)
-        count = int(data[1])
-        word = clear_word(data[0])
+
+        print(data)
+        count = int(data[0])
+        word = clear_word(data[1])
         tags = morph.parse(word)[0].tag
 
         if 'NOUN' not in tags:
             continue
 
         word = morph.parse(word.rstrip())[0].normal_form
+        if word == '':
+            continue
         if word[0].isupper():
             continue
         if word not in freq_dict:
@@ -47,18 +54,16 @@ length = len(sorted_words)
 
 prev_freq = 1e9
 
-files = [None] * 4
-files[0] = open('easy.txt', 'w', encoding="utf-8")
-files[1] = open('normal.txt', 'w', encoding="utf-8")
-files[2] = open('hard.txt', 'w', encoding="utf-8")
-files[3] = open('nightmare.txt', 'w', encoding="utf-8") #, open('normal.txt', mode='w', decoding="utf-8"), open('hard.txt', mode='w', decoding="utf-8"), open('nightmare.txt', mode='w', deecoding="utf-8")]
+files = [open('easy.txt', mode='w', encoding="utf-8"), open('normal.txt', mode='w', encoding="utf-8"), open('hard.txt', mode='w', encoding="utf-8"), open('nightmare.txt', mode='w', encoding="utf-8")]
 all_words = open('all_levels.txt', mode='w', encoding="utf-8")
 
 print(length)
 id = -1
 for i in reversed(range(length)):
-    if sorted_words[i][1] != prev_freq and (length / 4) * (id + 1) <= (length - i - 1):
+    if sorted_words[i][1] != prev_freq and (length / 8) * (id + 1) <= (length - i - 1):
         id += 1
+    if id > 3:
+        id = 3
     prev_freq = sorted_words[i][1]
     print(id, length - i - 1, length)
     print(sorted_words[i][0])
