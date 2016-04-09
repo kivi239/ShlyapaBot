@@ -42,7 +42,7 @@ class GameBot:
 
         def read_word_base(dictionary, divider=None):
             wb = set()
-            with open(dictionary, encoding="utf-8") as fil:
+            with open(dictionary, encoding='utf-8') as fil:
                 for line in fil.readlines():
                     word = line.split(divider)[0]
                     if 'NOUN' in self.morph.parse(word)[0].tag:
