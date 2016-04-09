@@ -22,7 +22,7 @@ class GameBot:
 
         self.syn_map = {}
         self.players = set()
-        self.word_base = set()
+        self.word_base = {}
         self.word_base_out = {}
         self.current_word = {}
         self.bigrams = {}
@@ -36,13 +36,18 @@ class GameBot:
         self.button_next.add("/next")
         self.buttons_hide = telebot.types.ReplyKeyboardHide()
         self.loggers = {}
+        self.scores = collections.defaultdict(int)
+        self.levels = {}
+        self.names = {}
 
         def read_word_base(dictionary, divider=None):
+            wb = set()
             with open(dictionary, encoding="utf-8") as fil:
                 for line in fil.readlines():
                     word = line.split(divider)[0]
                     if 'NOUN' in self.morph.parse(word)[0].tag:
-                        self.word_base.add(word)
+                        wb.add(word)
+            return wb
 
         def read_syn_dict(dictionary, divider=None):
             with open(dictionary, encoding="utf-8") as fil:
@@ -69,12 +74,8 @@ class GameBot:
                         data = self.normal_form(line.split()[0])
                         adjs = line.split()[1:]
                         if data not in self.bigrams:
-                            self.bigrams[data] = collections.defaultdict(int)
-#                            self.bigrams[data] = {}
+                            self.bigrams[data] = collections.defaultdict(int);
                         for adj0, adj1 in zip(adjs[0::2], adjs[1::2]):
-#                            if adj0 not in self.bigrams[data]:
-#                                self.bigrams[data][adj0] = adj1
-#                            else:
                             try:
                                 self.bigrams[data][adj0] += int(adj1)
                             except ValueError:
@@ -89,24 +90,22 @@ class GameBot:
                             snf = self.normal_form(noun0)
                             if snf not in self.bigrams:
                                 self.bigrams[snf] = collections.defaultdict(int)
-#                                self.bigrams[snf] = {}
-#                            if adj not in self.bigrams[snf]:
-#                                self.bigrams[snf][adj] = noun1
-#                            else:
                             try:
                                 self.bigrams[snf][adj] += int(noun1)
                             except ValueError:
                                 self.bigrams[snf][adj] += 0
+
+        def read_score_table(table):
+            with open(table, encoding='utf-8') as fil:
+                for line in fil.readlines():
+                    self.scores[" ".join(line.split()[:-1])] = int(line.split()[-1])
                         
-        read_word_base(config.syndict[1])
-#        read_syn_dict(config.syndict[0], "|")
+        for level in config.levels:
+            self.word_base[level] = read_word_base(config.levels[level])
         read_syn_dict(config.syndict[1])
-#        read_bigrams(config.bigrams[1])
-#        read_bigrams(config.bigrams[0], order="direct")
-#        read_bigrams(config.bigrams[2], order="direct")
         read_bigrams(config.bigrams[3])
         read_bigrams(config.bigrams[4])
-
+        read_score_table(config.score_table)
 
         logging.info("Dictionaries loaded")
         self.model = word2vec.Word2Vec.load_word2vec_format(config.corpuses[0], binary=True)
@@ -146,7 +145,7 @@ class GameBot:
         return result[:-2]
 
     def new_word(self, player_id):
-        word = random.choice(tuple(self.word_base ^ self.word_base_out[player_id]))
+        word = random.choice(tuple(self.word_base[self.levels[player_id]] ^ self.word_base_out[player_id]))
         logging.info("Загадано слово %s" % word)
         self.loggers[player_id].info("Загадано слово %s" % word)
         return word
@@ -172,7 +171,7 @@ class GameBot:
             return config.NOTAWORD
         result = ""
         for elem in self.model.most_similar(word_mod):
-            wrd = elem[0][:-2]
+            wrd = elem[0].split('_')[0]
             if self.check_roots(wrd, word) != config.NOTAWORD:
                 result += wrd + ", "
         if result == "":
@@ -181,7 +180,6 @@ class GameBot:
 
     def explain_bigrams(self, word, player_id):
         self.probabilities[player_id][2] = 0
-        self.loggers[player_id].info("Объяснение контекстом")
         self.loggers[player_id].info("Объяснение биграммами")
         if word not in self.bigrams:
             return config.NOTAWORD
@@ -271,10 +269,23 @@ class GameBot:
         norm = self.morph.parse(word)[0].normal_form
         return norm
 
+    def save_scores(self, table = config.score_table):
+        with open(table, 'r+') as fil:
+            for person in self.scores:
+                fil.write(person + " " + str(self.scores[person]) + "\n")
+        
+
     def poll(self):
         @self.bot.message_handler(commands=['start'])
         def greeter(mess):
             player_id = mess.chat.id
+            if mess.chat.type == "private":
+                self.names[player_id] = mess.from_user.first_name 
+                if mess.from_user.last_name is not None:
+                    self.names[player_id] += " " +  mess.from_user.last_name
+            else:
+                self.names[player_id] = mess.chat.title 
+
             logging.info(str(player_id) + " started new game")
             self.level_pending[player_id] = True
             self.players.add(player_id)
@@ -282,7 +293,7 @@ class GameBot:
             self.word_base_out[player_id] = set()
             self.loggers[player_id] = logging.getLogger(str(player_id))
             self.loggers[player_id].setLevel(logging.INFO)
-            handler = logging.FileHandler(str(player_id) + ".log")
+            handler = logging.FileHandler("log" + str(player_id) + ".log")
             self.loggers[player_id].addHandler(handler)
             self.loggers[player_id].info("Новая игра")
             self.bot.send_message(player_id, '''Здравствуйте! Выберите уровень сложности!
@@ -301,12 +312,26 @@ class GameBot:
 чтобы выбрать новое слово.
 Нажмите repeat, чтобы получить новое объяснение''', reply_markup=self.buttons)
 
+        @self.bot.message_handler(commands=['score'])
+        def scorer(mess):
+            player_id = mess.chat.id
+            if player_id not in self.players:
+                greeter(mess)
+            res = ""
+            player_name = self.names[player_id]
+            for n, person in enumerate(sorted(self.scores.items(), key = operator.itemgetter(1), reverse = True)):
+                if person[0] == player_name:
+                    res += "*" + str(n) + ".) " + self.names[player_id] + " " + str(person[1]) + "*\n"
+                else:
+                    res += str(n) + ".) " + person[0] + " " + str(person[1]) + "\n"
+            self.bot.send_message(player_id, res, parse_mode = "Markdown")
+
         @self.bot.message_handler(commands=['next'])
         def starter(mess):
             player_id = mess.chat.id
             self.probabilities[player_id] = [0.3, 0.5, 0.2]
             print("here")
-            if not player_id in self.players:
+            if player_id not in self.players or player_id not in self.levels:
                 greeter(mess)
                 return
 
@@ -353,6 +378,7 @@ class GameBot:
             self.loggers[player_id].info("Выбран уровень: %s" % mess.text)
             self.bot.send_message(player_id, config.level_responses[mess.text] + "\nНажмите /next, чтобы играть!",
                                   reply_markup=self.buttons)
+            self.levels[player_id] = mess.text
             self.level_pending[player_id] = False
 
         @self.bot.message_handler(func=lambda message: (message.text.startswith("Загадай")))
@@ -381,6 +407,7 @@ class GameBot:
             if self.level_pending[player_id]:
                 self.bot.send_message(player_id, config.level_responses["all"] + "\nНажмите /next, чтобы играть!",
                                       reply_markup=self.buttons)
+                self.levels[player_id] = "all"
                 self.level_pending[player_id] = False
             if mess.content_type == "text" and self.current_word[player_id] != config.NOTAWORD:
                 logging.info("Player %s tried word %s" %
@@ -391,6 +418,7 @@ class GameBot:
                                           % self.current_word[player_id],
                                           reply_markup=self.buttons)
                     self.loggers[player_id].info("Слово угадано")
+                    self.scores[self.names[player_id]] += 1
                     self.current_word[player_id] = config.NOTAWORD
                 else:
                     response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
@@ -399,4 +427,7 @@ class GameBot:
         self.bot.polling()
 
 HAT = GameBot()
-HAT.poll()
+try:
+    HAT.poll()
+finally:
+    HAT.save_scores()
