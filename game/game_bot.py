@@ -101,7 +101,9 @@ class GameBot:
                     self.scores[" ".join(line.split()[:-1])] = int(line.split()[-1])
                         
         for level in config.levels:
+            print(level)
             self.word_base[level] = read_word_base(config.levels[level])
+            print("OK")
         read_syn_dict(config.syndict[1])
         read_bigrams(config.bigrams[3])
         read_bigrams(config.bigrams[4])

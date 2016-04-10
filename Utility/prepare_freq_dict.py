@@ -54,8 +54,10 @@ length = len(sorted_words)
 
 prev_freq = 1e9
 
-files = [open('easy.txt', mode='w', encoding="utf-8"), open('normal.txt', mode='w', encoding="utf-8"), open('hard.txt', mode='w', encoding="utf-8"), open('nightmare.txt', mode='w', encoding="utf-8")]
-all_words = open('all_levels.txt', mode='w', encoding="utf-8")
+path = '../synonymdict/levels/'
+
+files = [open(path + 'easy.txt', mode='w', encoding="utf-8"), open(path + 'normal.txt', mode='w', encoding="utf-8"), open(path + 'hard.txt', mode='w', encoding="utf-8"), open(path + 'nightmare.txt', mode='w', encoding="utf-8")]
+all_words = open(path + 'all_levels.txt', 'w', encoding="utf-8")
 
 print(length)
 id = -1
