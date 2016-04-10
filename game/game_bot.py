@@ -101,9 +101,7 @@ class GameBot:
                     self.scores[" ".join(line.split()[:-1])] = int(line.split()[-1])
                         
         for level in config.levels:
-            print(level)
             self.word_base[level] = read_word_base(config.levels[level])
-            print("OK")
         read_syn_dict(config.syndict[1])
         read_bigrams(config.bigrams[3])
         read_bigrams(config.bigrams[4])
@@ -276,7 +274,6 @@ class GameBot:
             for person in self.scores:
                 fil.write(person + " " + str(self.scores[person]) + "\n")
         
-
     def poll(self):
         @self.bot.message_handler(commands=['start'])
         def greeter(mess):
@@ -378,10 +375,20 @@ class GameBot:
                 greeter(mess)
                 return
             self.loggers[player_id].info("Выбран уровень: %s" % mess.text)
-            self.bot.send_message(player_id, config.level_responses[mess.text] + "\nНажмите /next, чтобы играть!",
+            self.bot.send_message(player_id, config.level_responses[mess.text],
                                   reply_markup=self.buttons)
             self.levels[player_id] = mess.text
             self.level_pending[player_id] = False
+
+            self.current_word[player_id] = self.new_word(player_id)
+            explanation = self.explain_main(self.current_word[player_id], player_id)
+            logging.info(explanation)
+            splitted_text = telebot.util.split_string(explanation, 3000)
+            for text in splitted_text:
+                if len(text) > 2 and text[0] == 'О' and text[1] == 'й' and text[2] == '!':
+                    self.bot.send_message(player_id, text, reply_markup=self.buttons)
+                else:
+                    self.bot.send_message(player_id, text)
 
         @self.bot.message_handler(func=lambda message: (message.text.startswith("Загадай")))
         def secret(mess):
@@ -402,6 +409,7 @@ class GameBot:
 
         @self.bot.message_handler(func=lambda message: True)
         def listener(mess):
+            print("here")
             player_id = mess.chat.id
             if not player_id in self.players:
                 greeter(mess)
