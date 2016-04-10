@@ -205,6 +205,8 @@ class GameBot:
         return "Выражения с загаданным словом:\n" + result[:-1]
 
     def explain_main(self, word, player_id):
+        if player_id not in self.probabilities:
+            self.probabilities[player_id] = [0.3, 0.5, 0.2]
         if sum(self.probabilities[player_id]) == 0:
             self.probabilities[player_id] = [0.3, 0.5, 0.2]
         explanation = config.NOTAWORD
@@ -292,7 +294,7 @@ class GameBot:
             self.word_base_out[player_id] = set()
             self.loggers[player_id] = logging.getLogger(str(player_id))
             self.loggers[player_id].setLevel(logging.INFO)
-            handler = logging.FileHandler("log" + str(player_id) + ".log")
+            handler = logging.FileHandler("logs/log" + str(player_id) + ".log")
             self.loggers[player_id].addHandler(handler)
             self.loggers[player_id].info("Новая игра")
             self.bot.send_message(player_id, '''Здравствуйте! Выберите уровень сложности!
