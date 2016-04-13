@@ -152,7 +152,6 @@ class GameBot:
 
     def explain_synonyms(self, word, player_id):
         self.probabilities[player_id][0] = 0
-        self.loggers[player_id].info("Объяснение синонимами")
         if word not in self.syn_map:
             return config.NOTAWORD
         result = ""
@@ -161,11 +160,11 @@ class GameBot:
                 result += wrd + ", "
         if result == "":
             return config.NOTAWORD
+        self.loggers[player_id].info("Объяснение синонимами")
         return "Синонимы к загаданному слову:\n" + result[:-2]
 
     def explain_closest_words(self, word, player_id):
         self.probabilities[player_id][1] = 0
-        self.loggers[player_id].info("Объяснение контекстом")
         word_mod = word + '_S'
         if word_mod not in self.model.vocab:
             return config.NOTAWORD
@@ -176,13 +175,14 @@ class GameBot:
                 result += wrd + ", "
         if result == "":
             return config.NOTAWORD
+        self.loggers[player_id].info("Объяснение контекстом")
         return "Слова, употребляемые в сходном контексте с загаданным:\n" + result[:-2]
 
     def explain_bigrams(self, word, player_id):
         self.probabilities[player_id][2] = 0
-        self.loggers[player_id].info("Объяснение биграммами")
         if word not in self.bigrams:
             return config.NOTAWORD
+        self.loggers[player_id].info("Объяснение биграммами")
         res = []
         adjs = self.bigrams[word]
         if len(adjs.keys()) > 3:
