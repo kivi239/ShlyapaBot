@@ -23,15 +23,15 @@ def remove_empty_strings(data):
 
 freq_dict = dict()
 
-with open('../synonymdict/1grams-3.txt', encoding='utf-8') as f:
+with open('../synonymdict/new_levels.txt', encoding='utf-8') as f:
     for line in f:
         line = line.rstrip("\n")
-        data = line.split("\t")
+        data = line.split(" ")
         data = remove_empty_strings(data)
 
         print(data)
-        count = int(data[0])
-        word = clear_word(data[1])
+        count = int(data[1])
+        word = clear_word(data[0])
         tags = morph.parse(word)[0].tag
 
         if 'NOUN' not in tags:
