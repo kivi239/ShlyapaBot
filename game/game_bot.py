@@ -45,8 +45,7 @@ class GameBot:
             with open(dictionary, encoding='utf-8') as fil:
                 for line in fil.readlines():
                     word = line.split(divider)[0]
-                    if 'NOUN' in self.morph.parse(word)[0].tag:
-                        wb.add(word)
+                    wb.add(word)
             return wb
 
         def read_syn_dict(dictionary, divider=None):
@@ -392,7 +391,7 @@ class GameBot:
                 else:
                     self.bot.send_message(player_id, text)
 
-        @self.bot.message_handler(func=lambda message: (message.text.startswith("Загадай")))
+        @self.bot.message_handler(func=lambda message: False if message.text is None else message.text.startswith("Загадай"))
         def secret(mess):
             player_id = mess.chat.id
             if not player_id in self.players:
@@ -411,11 +410,14 @@ class GameBot:
 
         @self.bot.message_handler(func=lambda message: True)
         def listener(mess):
+            if mess.text is None:
+                return
             print("here")
             player_id = mess.chat.id
             if not player_id in self.players:
                 greeter(mess)
                 return
+
             if self.level_pending[player_id]:
                 self.bot.send_message(player_id, config.level_responses["all"] + "\nНажмите /next, чтобы играть!",
                                       reply_markup=self.buttons)
