@@ -119,9 +119,9 @@ class GameBot:
             for j in range(m + 1):
                 d[i].append(int(1e9))
         for i in range(n):
-            d[i + 1][0] = i
+            d[i + 1][0] = i + 1
         for i in range(m):
-            d[0][i + 1] = i
+            d[0][i + 1] = i + 1
         d[0][0] = 0
 
         for i in range(n):
