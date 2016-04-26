@@ -110,6 +110,8 @@ class GameBot:
         self.model = word2vec.Word2Vec.load_word2vec_format(config.corpuses[0], binary=True)
 
     def similar_words(self, word1, word2):
+        if (word2 + "_S") in self.model.vocab.keys():
+            return False
         n = len(word1)
         m = len(word2)
         d = [None] * (n + 1)
@@ -330,7 +332,6 @@ class GameBot:
         def starter(mess):
             player_id = mess.chat.id
             self.probabilities[player_id] = [0.3, 0.5, 0.2]
-            print("here")
             if player_id not in self.players or player_id not in self.levels:
                 greeter(mess)
                 return
