@@ -110,7 +110,7 @@ class GameBot:
         self.model = word2vec.Word2Vec.load_word2vec_format(config.corpuses[0], binary=True)
 
     def similar_words(self, word1, word2):
-        if (word2 + "_S") in self.model.vocab.keys():
+        if word1 != word2 and (word2 + "_S") in self.model.vocab.keys():
             return False
         n = len(word1)
         m = len(word2)
