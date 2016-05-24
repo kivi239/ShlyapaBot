@@ -28,7 +28,7 @@ class GameBot:
         self.bigrams = {}
         self.probabilities = {}
         self.buttons = telebot.types.ReplyKeyboardMarkup()
-        self.buttons.row("/repeat", "/next")
+        self.buttons.row("repeat", "next")
         self.level_buttons = telebot.types.ReplyKeyboardMarkup(row_width = 1)
         self.level_buttons.add("easy", "normal", "hard", "nightmare")
         self.level_pending = {}
@@ -299,8 +299,8 @@ class GameBot:
             self.loggers[player_id].addHandler(handler)
             self.loggers[player_id].info("Новая игра")
             self.bot.send_message(player_id, '''Здравствуйте! Выберите уровень сложности!
-Нажмите /next чтобы выбрать другое слово!
-Чтобы попросить другое объяснение, нажмите /repeat\n Помощь - введите /help!''',
+Нажмите next чтобы выбрать другое слово!
+Чтобы попросить другое объяснение, нажмите repeat\n Помощь - введите /help!''',
                                   reply_markup=self.level_buttons)
 
         @self.bot.message_handler(commands=['help'])
@@ -328,7 +328,7 @@ class GameBot:
                     res += str(n) + ".) " + person[0] + " " + str(person[1]) + "\n"
             self.bot.send_message(player_id, res, parse_mode = "Markdown")
 
-        @self.bot.message_handler(commands=['next'])
+        @self.bot.message_handler(func=lambda message: False if message.text is None else message.text.startswith("next"))
         def starter(mess):
             player_id = mess.chat.id
             self.probabilities[player_id] = [0.3, 0.5, 0.2]
@@ -353,7 +353,7 @@ class GameBot:
                 else:
                     self.bot.send_message(player_id, text)
 
-        @self.bot.message_handler(commands=['repeat'])
+        @self.bot.message_handler(func=lambda message: False if message.text is None else message.text.startswith("repeat"))
         def repeater(mess):
             player_id = mess.chat.id
             if player_id not in self.players:
@@ -420,7 +420,7 @@ class GameBot:
                 return
 
             if self.level_pending[player_id]:
-                self.bot.send_message(player_id, config.level_responses["all"] + "\nНажмите /next, чтобы играть!",
+                self.bot.send_message(player_id, config.level_responses["all"] + "\nНажмите next, чтобы играть!",
                                       reply_markup=self.buttons)
                 self.levels[player_id] = "all"
                 self.level_pending[player_id] = False
@@ -429,7 +429,7 @@ class GameBot:
                              (str(mess.chat.id), self.normal_form(mess.text)))
                 self.loggers[player_id].info("Попытка: %s" % self.normal_form(mess.text))
                 if self.similar_words(self.current_word[player_id], self.normal_form(mess.text)):
-                    self.bot.send_message(player_id, "Отлично! Вы отгадали слово %s.\n Сыграем снова: /next?"
+                    self.bot.send_message(player_id, "Отлично! Вы отгадали слово %s.\n Сыграем снова?"
                                           % self.current_word[player_id],
                                           reply_markup=self.buttons)
                     self.loggers[player_id].info("Слово угадано")
