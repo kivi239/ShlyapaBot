@@ -39,6 +39,8 @@ class GameBot:
         self.scores = collections.defaultdict(int)
         self.levels = {}
         self.names = {}
+        self.words_puzzle = 0
+        self.words_guess = 0
 
         def read_word_base(dictionary, divider=None):
             wb = set()
@@ -146,6 +148,7 @@ class GameBot:
         return result[:-2]
 
     def new_word(self, player_id):
+        self.words_puzzle += 1
         word = random.choice(tuple(self.word_base[self.levels[player_id]] ^ self.word_base_out[player_id]))
         logging.info("Загадано слово %s" % word)
         self.loggers[player_id].info("Загадано слово %s" % word)
@@ -409,13 +412,28 @@ class GameBot:
                     else:
                         self.bot.send_message(player_id, text)
 
+        @self.bot.message_handler(func=lambda message: False if message.text is None else message.text.startswith("ЗАВЕРШИСЬ!"))
+        def secret_end(mess):
+            player_id = mess.chat.id
+            if player_id not in self.players:
+                self.bot.send_message(player_id, "Секретное меню - только для залогиненных пользователей, нажмите /start")
+                return
+
+            stat = open('stat.txt', 'w', encoding='utf-8')
+            text = "Number of players: " + str(self.players) + "\n"
+            text += "Words were puzzled: " + str(self.words_puzzle) + "\n"
+            text += "Words were guessed: " + str(self.words_guess) + "\n"
+            stat.write(text)
+            self.bot.send_message(player_id, text)
+
+
         @self.bot.message_handler(func=lambda message: True)
         def listener(mess):
             if mess.text is None:
                 return
             print("here")
             player_id = mess.chat.id
-            if not player_id in self.players:
+            if player_id not in self.players:
                 greeter(mess)
                 return
 
@@ -435,6 +453,7 @@ class GameBot:
                     self.loggers[player_id].info("Слово угадано")
                     self.scores[self.names[player_id]] += 1
                     self.current_word[player_id] = config.NOTAWORD
+                    self.words_guess += 1
                 else:
                     response = ["Нет!", "Неправильно.", "Неа...", "Мимо", "Не то..."]
                     self.bot.send_message(player_id, random.choice(response))
