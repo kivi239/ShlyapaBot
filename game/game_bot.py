@@ -412,15 +412,15 @@ class GameBot:
                     else:
                         self.bot.send_message(player_id, text)
 
-        @self.bot.message_handler(func=lambda message: False if message.text is None else message.text.startswith("ЗАВЕРШИСЬ!"))
-        def secret_end(mess):
+        @self.bot.message_handler(func=lambda message: False if message.text is None else message.text.startswith("СТАТИСТИКА!"))
+        def secret_stat(mess):
             player_id = mess.chat.id
             if player_id not in self.players:
                 self.bot.send_message(player_id, "Секретное меню - только для залогиненных пользователей, нажмите /start")
                 return
 
             stat = open('stat.txt', 'w', encoding='utf-8')
-            text = "Number of players: " + str(self.players) + "\n"
+            text = "Number of players: " + str(len(self.players)) + "\n"
             text += "Words were puzzled: " + str(self.words_puzzle) + "\n"
             text += "Words were guessed: " + str(self.words_guess) + "\n"
             stat.write(text)
